@@ -1,3 +1,1 @@
-import { main } from "../dist/index.js";
-
-main();
+require("../dist/index.js").main();

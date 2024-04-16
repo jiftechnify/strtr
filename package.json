@@ -2,15 +2,15 @@
 	"name": "strtr",
 	"version": "0.1.0",
 	"description": "",
-	"type": "module",
 	"main": "index.js",
 	"bin": "./bin/cli.js",
 	"files": ["dist", "bin"],
 	"scripts": {
-		"start": "bin/cli.js",
 		"tsc": "tsc",
 		"lint": "tsc && biome format ./src && biome lint ./src",
-		"fix": "biome format --write ./src && biome lint --apply ./src"
+		"fix": "biome format --write ./src && biome lint --apply ./src",
+		"build": "node build.mjs",
+		"start": "node bin/cli.js"
 	},
 	"repository": {
 		"type": "git",
@@ -31,8 +31,12 @@
 		"@biomejs/biome": "^1.7.0",
 		"@tsconfig/strictest": "^2.0.5",
 		"@types/fs-extra": "^11.0.4",
+		"@types/ws": "^8.5.10",
 		"esbuild": "^0.20.2",
 		"fs-extra": "^11.2.0"
+	},
+	"optionalDependencies": {
+		"bufferutil": "^4.0.8"
 	},
 	"packageManager": "pnpm@8.15.5+sha256.4b4efa12490e5055d59b9b9fc9438b7d581a6b7af3b5675eb5c5f447cee1a589"
 }
