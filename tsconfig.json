@@ -1,0 +1,10 @@
+{
+  // https://github.com/tsconfig/bases/blob/main/bases/strictest.json
+  "extends": "@tsconfig/strictest/tsconfig.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "moduleResolution": "Node",
+    "isolatedModules": true,
+  },
+  "include": ["src/**/*"]
+}
