@@ -5,6 +5,7 @@
     "target": "ESNext",
     "moduleResolution": "Node",
     "isolatedModules": true,
+    "noEmit": true,
   },
   "include": ["src/**/*"]
 }

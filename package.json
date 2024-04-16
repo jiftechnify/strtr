@@ -5,8 +5,12 @@
 	"type": "module",
 	"main": "index.js",
 	"bin": "./bin/cli.js",
+	"files": ["dist", "bin"],
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"start": "bin/cli.js",
+		"tsc": "tsc",
+		"lint": "tsc && biome format ./src && biome lint ./src",
+		"fix": "biome format --write ./src && biome lint --apply ./src"
 	},
 	"repository": {
 		"type": "git",
@@ -18,7 +22,6 @@
 		"url": "https://github.com/jiftechnify/strtr/issues"
 	},
 	"homepage": "https://github.com/jiftechnify/strtr#readme",
-	"packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610",
 	"dependencies": {
 		"heap-js": "^2.5.0",
 		"nostr-tools": "^2.5.0",
@@ -30,5 +33,6 @@
 		"@types/fs-extra": "^11.0.4",
 		"esbuild": "^0.20.2",
 		"fs-extra": "^11.2.0"
-	}
+	},
+	"packageManager": "pnpm@8.15.5+sha256.4b4efa12490e5055d59b9b9fc9438b7d581a6b7af3b5675eb5c5f447cee1a589"
 }
