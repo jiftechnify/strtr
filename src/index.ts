@@ -56,7 +56,7 @@ class ConnectionImpl implements Connection {
 
 	#services: ServiceBundle;
 
-	#openedSubs = new Map<string, Subscription>();
+	#activeSubs = new Set<string>();
 
 	constructor(ws: WebSocket, peerId: string, services: ServiceBundle) {
 		this.#ws = ws;
@@ -84,21 +84,23 @@ class ConnectionImpl implements Connection {
 						const subId = msg[1];
 						const filters = msg.slice(2) as Filter[];
 
+						// TODO: skip querying if limit == 0
 						// FIXME: how to handle events that are ingested by another clients while querying?
 						this.#services.repo.query(subId, filters, r2cMsgSender);
 
+						r2cMsgSender.sendEose(subId);
+
 						const sub = new SubscriptionImpl(this.#peerId, subId, filters, r2cMsgSender);
 						this.#services.subPool.register(sub);
-						this.#openedSubs.set(subId, sub);
+						this.#activeSubs.add(subId);
 						break;
 					}
 					case "CLOSE": {
 						const subId = msg[1];
 
-						const sub = this.#openedSubs.get(subId);
-						if (sub !== undefined) {
-							this.#services.subPool.unregister(sub);
-							this.#openedSubs.delete(subId);
+						if (this.#activeSubs.has(subId)) {
+							this.#services.subPool.unregister(this.#peerId, subId);
+							this.#activeSubs.delete(subId);
 						}
 						break;
 					}
@@ -125,8 +127,8 @@ class ConnectionImpl implements Connection {
 	}
 
 	close(closer: ConnectionCloser): void {
-		for (const sub of this.#openedSubs.values()) {
-			this.#services.subPool.unregister(sub);
+		for (const subId of this.#activeSubs) {
+			this.#services.subPool.unregister(this.#peerId, subId);
 		}
 		if (closer === "server") {
 			console.log("close connection from server");
@@ -148,12 +150,13 @@ class EventRepositoryImpl implements EventRepository {
 	query(subId: string, filters: Filter[], msgSender: R2CMessageSender): void {
 		console.log(`[EventRepository] querying event (subId: ${subId}, filters: ${filters})`);
 		// TODO: send matched events
-
-		msgSender.sendEose(subId);
 	}
 }
 
 interface Subscription {
+	readonly peerId: string;
+	readonly subId: string;
+
 	broadcast(ev: NostrEvent): void;
 }
 
@@ -162,6 +165,14 @@ class SubscriptionImpl implements Subscription {
 	#subId: string;
 	#filters: Filter[];
 	#msgSender: R2CMessageSender;
+
+	get peerId(): string {
+		return this.#peerId;
+	}
+
+	get subId(): string {
+		return this.#subId;
+	}
 
 	constructor(peerId: string, subId: string, filters: Filter[], msgSender: R2CMessageSender) {
 		this.#peerId = peerId;
@@ -184,25 +195,30 @@ class SubscriptionImpl implements Subscription {
 
 interface SubscriptionPool {
 	register(sub: Subscription): void;
-	unregister(sub: Subscription): void;
+	unregister(peerId: string, subId: string): void;
 
 	broadcast(ev: NostrEvent): void;
 }
 
 class SubscriptionPoolImpl implements SubscriptionPool {
-	#subs = new Set<Subscription>();
+	#subs = new Map<string, Subscription>();
+
+	static #subUniqId(peerId: string, subId: string): string {
+		return `${peerId}/${subId}`;
+	}
 
 	register(sub: Subscription): void {
-		this.#subs.add(sub);
+		// if there is already a subscription with the same peer & subId, overwrite it with new one
+		this.#subs.set(SubscriptionPoolImpl.#subUniqId(sub.peerId, sub.subId), sub);
 	}
-	unregister(sub: Subscription): void {
-		this.#subs.delete(sub);
+	unregister(peerId: string, subId: string): void {
+		this.#subs.delete(SubscriptionPoolImpl.#subUniqId(peerId, subId));
 	}
 
 	broadcast(ev: NostrEvent): void {
 		console.log(`[SubscriptionPool] broadcasting event to ${this.#subs.size} subscriptions...`);
 
-		for (const sub of this.#subs) {
+		for (const sub of this.#subs.values()) {
 			sub.broadcast(ev);
 		}
 	}
