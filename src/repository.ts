@@ -318,6 +318,12 @@ class EventBucket {
 	private searchStartIndex(until: number): number {
 		let [l, r] = [0, this.events.length - 1];
 		while (true) {
+			if (l >= r) {
+				// biome-ignore lint/style/noNonNullAssertion: `l` always within bounds
+				const created_at = this.events[l]!.event.created_at;
+				return until >= created_at ? l : l - 1;
+			}
+
 			const m = Math.floor((l + r) / 2);
 
 			// biome-ignore lint/style/noNonNullAssertion: `m` always within bounds
@@ -325,10 +331,6 @@ class EventBucket {
 
 			if (until === created_at) {
 				return m;
-			}
-
-			if (l === r) {
-				return until < created_at ? m - 1 : m;
 			}
 
 			if (until < created_at) {
