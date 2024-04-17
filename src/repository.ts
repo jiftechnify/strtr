@@ -12,7 +12,7 @@ export type EventRepositoryInsertionError = "duplicated" | "deleted";
 
 export interface EventRepository {
 	insert(ev: NostrEvent): Result<object, EventRepositoryInsertionError>;
-	query(subId: string, filters: Filter[]): IterableIterator<NostrEvent>;
+	query(filters: Filter[]): IterableIterator<NostrEvent>;
 }
 
 type EventIndices = {
@@ -144,14 +144,16 @@ export class EventRepositoryImpl implements EventRepository {
 		this.#deleteById(deletedEv.id, requester);
 	}
 
-	*query(subId: string, filters: Filter[]): IterableIterator<NostrEvent> {
-		console.log(`[EventRepository] querying event (subId: ${subId}, filters: ${filters})`);
+	*query(filters: Filter[]): IterableIterator<NostrEvent> {
+		console.log(`[EventRepository] querying event (filters: ${JSON.stringify(filters)})`);
 
 		for (const filter of filters) {
 			if (filter.limit === 0) {
+				console.log(`[EventRepository] skipping filter with limit: 0 (filter: ${JSON.stringify(filter)})`);
 				continue;
 			}
 			if (isNeverMatchingFilter(filter)) {
+				console.log(`[EventRepository] skipping never matching filter (filter: ${JSON.stringify(filter)})`);
 				continue;
 			}
 
@@ -168,6 +170,8 @@ export class EventRepositoryImpl implements EventRepository {
 			// yield events from multiple buckets
 			yield* take(this.#mergedBuckets(buckets, filter), lim);
 		}
+
+		console.log(`[EventRepository] query done (filters: ${JSON.stringify(filters)})`);
 	}
 
 	#selectIndex(filter: Filter): EventBucket[] {

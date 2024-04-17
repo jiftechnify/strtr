@@ -91,7 +91,7 @@ class ConnectionImpl implements Connection {
 						const filters = msg.slice(2) as Filter[];
 
 						// TODO: how to handle events that are ingested by another clients while querying?
-						for (const ev of this.#services.repo.query(subId, filters)) {
+						for (const ev of this.#services.repo.query(filters)) {
 							r2cMsgSender.sendEvent(subId, ev);
 						}
 						r2cMsgSender.sendEose(subId);
@@ -112,6 +112,7 @@ class ConnectionImpl implements Connection {
 						if (this.#activeSubs.has(subId)) {
 							this.#services.subPool.unregister(this.#peerId, subId);
 							this.#activeSubs.delete(subId);
+							console.log(`closed subscription (peer: ${this.#peerId}, subId: ${subId})`);
 						}
 						break;
 					}
