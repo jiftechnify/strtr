@@ -1,3 +1,5 @@
+import { Result } from "./types";
+
 /**
  * The data structure of Nostr event.
  */
@@ -65,4 +67,39 @@ export const isNostrEvent = (rawEv: Record<string, unknown>): rawEv is NostrEven
 	return true;
 };
 
+export const isNonParamReplaceableEvent = (ev: NostrEvent): boolean =>
+	ev.kind === 0 || ev.kind === 3 || (10000 <= ev.kind && ev.kind < 20000);
+export const isParamReplaceableEvent = (ev: NostrEvent): boolean => 30000 <= ev.kind && ev.kind < 40000;
+export const isReplaceableEvent = (ev: NostrEvent): boolean =>
+	isNonParamReplaceableEvent(ev) || isParamReplaceableEvent(ev);
+
 export const isEphemeralEvent = (ev: NostrEvent): boolean => 20000 <= ev.kind && ev.kind < 30000;
+
+export const getTagValuesByName = (ev: NostrEvent, tagName: string): string[] =>
+	ev.tags.filter((t) => t[0] === tagName).map((t) => t[1] ?? "");
+
+export type EventHandling = "regular" | "non-param-replaceable" | "param-replaceable" | "ephemeral";
+export const getEventHandling = (ev: NostrEvent): EventHandling => {
+	if (isNonParamReplaceableEvent(ev)) {
+		return "non-param-replaceable";
+	}
+	if (isParamReplaceableEvent(ev)) {
+		return "param-replaceable";
+	}
+	if (isEphemeralEvent(ev)) {
+		return "ephemeral";
+	}
+	return "regular";
+};
+
+export type EventSemanticsError = "no-dtag-in-param-replaceable";
+// check if the event is semantically valid
+export const validateEventSemantics = (ev: NostrEvent): Result<object, EventSemanticsError> => {
+	if (isParamReplaceableEvent(ev)) {
+		const d = getTagValuesByName(ev, "d");
+		if (d.length === 0) {
+			return Result.err("no-dtag-in-param-replaceable");
+		}
+	}
+	return Result.ok({});
+};

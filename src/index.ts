@@ -1,6 +1,9 @@
 import { type Filter, type Event as NostrEvent, matchFilters, verifyEvent } from "nostr-tools";
 import { type WebSocket, WebSocketServer } from "ws";
+import { getEventHandling, validateEventSemantics } from "./event";
 import { type R2CMessageSender, createR2CMessageSender, parseC2RMessage } from "./message";
+import { type EventRepository, EventRepositoryImpl } from "./repository";
+import { isNeverMatchingFilter } from "./filter";
 
 export const main = () => {
 	const conns = new Set<Connection>();
@@ -84,13 +87,18 @@ class ConnectionImpl implements Connection {
 						const subId = msg[1];
 						const filters = msg.slice(2) as Filter[];
 
-						// TODO: skip querying if limit == 0
-						// FIXME: how to handle events that are ingested by another clients while querying?
-						this.#services.repo.query(subId, filters, r2cMsgSender);
-
+						// TODO: how to handle events that are ingested by another clients while querying?
+						for (const ev of this.#services.repo.query(subId, filters)) {
+							r2cMsgSender.sendEvent(subId, ev);
+						}
 						r2cMsgSender.sendEose(subId);
 
-						const sub = new SubscriptionImpl(this.#peerId, subId, filters, r2cMsgSender);
+						const effFilters = filters.filter((f) => !isNeverMatchingFilter(f));
+						if (effFilters.length === 0) {
+							r2cMsgSender.sendClosed(subId, "error: no effective filter");
+							return;
+						}
+						const sub = new SubscriptionImpl(this.#peerId, subId, effFilters, r2cMsgSender);
 						this.#services.subPool.register(sub);
 						this.#activeSubs.add(subId);
 						break;
@@ -134,22 +142,6 @@ class ConnectionImpl implements Connection {
 			console.log("close connection from server");
 			this.#ws.close();
 		}
-	}
-}
-
-interface EventRepository {
-	insert(ev: NostrEvent): void;
-	query(subId: string, filters: Filter[], msgSender: R2CMessageSender): void;
-}
-
-class EventRepositoryImpl implements EventRepository {
-	insert(ev: NostrEvent): void {
-		console.log(`[EventRepository] inserting event (id: ${ev.id}, author: ${ev.pubkey}, created_at: ${ev.created_at})`);
-	}
-
-	query(subId: string, filters: Filter[], msgSender: R2CMessageSender): void {
-		console.log(`[EventRepository] querying event (subId: ${subId}, filters: ${filters})`);
-		// TODO: send matched events
 	}
 }
 
@@ -247,10 +239,31 @@ class EventIngestorImpl implements EventIngestor {
 			msgSender.sendOk(ev.id, false, "error: invalid signature");
 			return;
 		}
+		const validationRes = validateEventSemantics(ev);
+		if (!validationRes.isOk) {
+			switch (validationRes.err) {
+				case "no-dtag-in-param-replaceable":
+					msgSender.sendOk(ev.id, false, "error: no d-tag in parametarized replaceable event");
+					return;
+			}
+		}
+
+		// store events that are not ephemeral
+		if (getEventHandling(ev) !== "ephemeral") {
+			const insertionRes = this.#repo.insert(ev);
+			if (!insertionRes.isOk) {
+				switch (insertionRes.err) {
+					case "duplicated":
+						msgSender.sendOk(ev.id, true, "duplicate: already have this event");
+						return;
+					case "deleted":
+						msgSender.sendOk(ev.id, false, "error: already deleted this event");
+						return;
+				}
+			}
+		}
 
 		this.#subPool.broadcast(ev);
-		this.#repo.insert(ev);
-		// TODO: handle errors
 		msgSender.sendOk(ev.id, true);
 	}
 }

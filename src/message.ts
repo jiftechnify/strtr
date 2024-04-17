@@ -1,6 +1,7 @@
 import type { Filter, Event as NostrEvent } from "nostr-tools";
 import type { WebSocket } from "ws";
 import { isNostrEvent } from "./event";
+import { isReqFilter } from "./filter";
 import { Result } from "./types";
 
 /* client to relay (C2R) message parsing */
@@ -73,44 +74,6 @@ export const parseC2RMessage = (s: string): Result<C2RMessage, ParseC2RMessageEr
 	}
 };
 
-type TagQueryKey = `#${string}`;
-
-// checks if `s` has the pattern of tag query key (e.g. "#" + single letter)
-const isTagQueryKey = (s: string): s is TagQueryKey => {
-	return s.startsWith("#") && s.length === 2;
-};
-
-const isReqFilter = (raw: Record<string, unknown>): raw is Filter => {
-	if ("ids" in raw && !Array.isArray(raw["ids"])) {
-		return false;
-	}
-	if ("kinds" in raw && !Array.isArray(raw["kinds"])) {
-		return false;
-	}
-	if ("authors" in raw && !Array.isArray(raw["authors"])) {
-		return false;
-	}
-	if ("since" in raw && typeof raw["since"] !== "number") {
-		return false;
-	}
-	if ("until" in raw && typeof raw["until"] !== "number") {
-		return false;
-	}
-	if ("limit" in raw && typeof raw["limit"] !== "number") {
-		return false;
-	}
-	if ("search" in raw && typeof raw["search"] !== "string") {
-		return false;
-	}
-	for (const tqk of Object.keys(raw).filter((k) => isTagQueryKey(k))) {
-		if (!Array.isArray(raw[tqk])) {
-			return false;
-		}
-	}
-
-	return true;
-};
-
 export type R2CMessageSender = {
 	sendEvent: (subId: string, ev: NostrEvent) => void;
 	sendOk: (eventId: string, ok: boolean, message?: string) => void;
@@ -122,23 +85,18 @@ export type R2CMessageSender = {
 export const createR2CMessageSender = (ws: WebSocket): R2CMessageSender => {
 	return {
 		sendEvent: (subId: string, ev: NostrEvent) => {
-			console.log(["EVENT", subId, ev]);
 			ws.send(JSON.stringify(["EVENT", subId, ev]));
 		},
 		sendOk: (eventId: string, ok: boolean, message = "") => {
-			console.log(["OK", eventId, ok, message]);
 			ws.send(JSON.stringify(["OK", eventId, ok, message]));
 		},
 		sendEose: (subId: string) => {
-			console.log(["EOSE", subId]);
 			ws.send(JSON.stringify(["EOSE", subId]));
 		},
 		sendClosed: (subId: string, message: string) => {
-			console.log(["CLOSED", subId, message]);
 			ws.send(JSON.stringify(["CLOSED", subId, message]));
 		},
 		sendNotice: (message: string) => {
-			console.log(["NOTICE", message]);
 			ws.send(JSON.stringify(["NOTICE", message]));
 		},
 	};
