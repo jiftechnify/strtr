@@ -1,7 +1,9 @@
 import assert from "node:assert";
+
 import { Heap } from "heap-js";
 import type { NostrEvent } from "nostr-tools/core";
 import { type Filter, matchFilter } from "nostr-tools/filter";
+
 import { getEventHandling, getTagValuesByName } from "./event";
 import { isNeverMatchingFilter } from "./filter";
 import { Result } from "./types";

@@ -1,9 +1,12 @@
-import { type Filter, type Event as NostrEvent, matchFilters, verifyEvent } from "nostr-tools";
+import type { Event as NostrEvent } from "nostr-tools/core";
+import { type Filter, matchFilters } from "nostr-tools/filter";
+import { verifyEvent } from "nostr-tools/pure";
 import { type WebSocket, WebSocketServer } from "ws";
+
 import { getEventHandling, validateEventSemantics } from "./event";
+import { isNeverMatchingFilter } from "./filter";
 import { type R2CMessageSender, createR2CMessageSender, parseC2RMessage } from "./message";
 import { type EventRepository, EventRepositoryImpl } from "./repository";
-import { isNeverMatchingFilter } from "./filter";
 
 export const main = () => {
 	const conns = new Set<Connection>();

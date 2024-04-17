@@ -1,5 +1,7 @@
-import type { Filter, Event as NostrEvent } from "nostr-tools";
+import type { Event as NostrEvent } from "nostr-tools/core";
+import type { Filter } from "nostr-tools/filter";
 import type { WebSocket } from "ws";
+
 import { isNostrEvent } from "./event";
 import { isReqFilter } from "./filter";
 import { Result } from "./types";
