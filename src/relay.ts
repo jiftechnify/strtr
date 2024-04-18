@@ -14,6 +14,13 @@ type ServiceBundle = {
 	ingestor: EventIngestor;
 };
 
+/**
+ * Launches a Nostr relay.
+ *
+ * @example
+ * import { launchRelay } from 'strtr';
+ * const shutdown = launchRelay();
+ */
 export const launchRelay = () => {
 	const conns = new Set<Connection>();
 
@@ -28,26 +35,39 @@ export const launchRelay = () => {
 
 	const wsServer = new WebSocketServer({ port: 8080 });
 	wsServer.on("listening", () => {
-		console.log("strtr listening on port 8080");
+		console.log("[WSServer] listening on port 8080");
 	});
 	wsServer.on("connection", (ws, req) => {
 		const peerId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
-		console.log(`new connection from ${peerId}`);
+		console.log(`[WSServer] new connection from ${peerId}`);
 
 		const conn = new ConnectionImpl(ws, peerId, services);
 		conns.add(conn);
 
 		ws.on("error", () => {
-			console.error(`WebSocket error on ${peerId}`);
+			console.error(`[WSServer] WebSocket error on ${peerId}`);
 		});
-		ws.on("close", (code) => {
-			console.log(`WebSocket closed from client (code: ${code})`);
+		ws.once("close", (code) => {
+			console.log(`[WSServer] socket closed (code: ${code})`);
 			conn.close("client");
 			conns.delete(conn);
 		});
 	});
 
-	// TODO: close all connections on receive signal
+	// shutdown function
+	let shuttingDown = false;
+	return () => {
+		if (shuttingDown) {
+			return;
+		}
+		shuttingDown = true;
+		console.log("[WSServer] shutting down...");
+		for (const conn of conns) {
+			conn.close("server");
+		}
+		conns.clear();
+		wsServer.close();
+	};
 };
 
 type ConnectionCloser = "client" | "server";
@@ -112,12 +132,12 @@ class ConnectionImpl implements Connection {
 						if (this.#activeSubs.has(subId)) {
 							this.#services.subPool.unregister(this.#peerId, subId);
 							this.#activeSubs.delete(subId);
-							console.log(`closed subscription (peer: ${this.#peerId}, subId: ${subId})`);
+							console.log(`[Connection] closed subscription (peer: ${this.#peerId}, subId: ${subId})`);
 						}
 						break;
 					}
 					default: {
-						console.error(`Unknown message type: ${msg[0]}`);
+						console.error("unknown message type (unreachable)");
 						break;
 					}
 				}
@@ -143,7 +163,7 @@ class ConnectionImpl implements Connection {
 			this.#services.subPool.unregister(this.#peerId, subId);
 		}
 		if (closer === "server") {
-			console.log("close connection from server");
+			console.log("[Connection] closing by server...");
 			this.#ws.close();
 		}
 	}
@@ -205,9 +225,11 @@ class SubscriptionPoolImpl implements SubscriptionPool {
 
 	register(sub: Subscription): void {
 		// if there is already a subscription with the same peer & subId, overwrite it with new one
+		console.log(`[SubscriptionPool] register subscription (peer: ${sub.peerId}, subId: ${sub.subId})`);
 		this.#subs.set(SubscriptionPoolImpl.#subUniqId(sub.peerId, sub.subId), sub);
 	}
 	unregister(peerId: string, subId: string): void {
+		console.log(`[SubscriptionPool] unregister subscription (peer: ${peerId}, subId: ${subId})`);
 		this.#subs.delete(SubscriptionPoolImpl.#subUniqId(peerId, subId));
 	}
 
