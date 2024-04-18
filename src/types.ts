@@ -1,18 +1,18 @@
 export type Result<T, E> =
 	| {
-			isOk: true;
+			ok: true;
 			val: T;
 	  }
 	| {
-			isOk: false;
+			ok: false;
 			err: E;
 	  };
 
 export const Result = {
 	ok<T>(val: T): Result<T, never> {
-		return { isOk: true, val };
+		return { ok: true, val };
 	},
 	err<E>(err: E): Result<never, E> {
-		return { isOk: false, err };
+		return { ok: false, err };
 	},
 };

@@ -1,6 +1,5 @@
 import type { NostrEvent } from "nostr-tools/core";
 import type { Filter } from "nostr-tools/filter";
-import type { R2CMessageSender } from "./message";
 import type { Result } from "./types";
 
 export type ConnectionCloser = "client" | "server";
@@ -23,8 +22,13 @@ export interface ISubscriptionPool {
 	broadcast(ev: NostrEvent): void;
 }
 
+export type EventIngestionOutcome = {
+	ok: boolean;
+	msg: string;
+};
+
 export interface IEventIngestor {
-	ingest(ev: NostrEvent, msgSender: R2CMessageSender): void;
+	ingest(ev: NostrEvent): EventIngestionOutcome;
 }
 
 export type EventRepositoryInsertionError = "duplicated" | "deleted";

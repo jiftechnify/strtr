@@ -7,6 +7,7 @@ import { getEventHandling, validateEventSemantics } from "./event";
 import { isNeverMatchingFilter } from "./filter";
 import type {
 	ConnectionCloser,
+	EventIngestionOutcome,
 	IConnection,
 	IEventIngestor,
 	IEventRepository,
@@ -94,13 +95,14 @@ class Connection implements IConnection {
 			const rawMsg = data.toString("utf-8");
 			const parseResult = parseC2RMessage(rawMsg);
 
-			if (parseResult.isOk) {
+			if (parseResult.ok) {
 				const msg = parseResult.val;
 				switch (msg[0]) {
 					case "EVENT": {
 						const ev = msg[1];
 
-						this.#services.ingestor.ingest(ev, r2cMsgSender);
+						const { ok: isOk, msg: okMsg } = this.#services.ingestor.ingest(ev);
+						r2cMsgSender.sendOk(ev.id, isOk, okMsg);
 						break;
 					}
 					case "REQ": {
@@ -234,41 +236,37 @@ class EventIngestor implements IEventIngestor {
 		this.#subPool = subPool;
 	}
 
-	ingest(ev: NostrEvent, msgSender: R2CMessageSender): void {
+	ingest(ev: NostrEvent): EventIngestionOutcome {
 		console.log(
 			`[EventIngestor] ingesting event (id: ${ev.id}, author: ${ev.pubkey}, created_at: ${ev.created_at})...`,
 		);
 
 		const isEvValid = verifyEvent(ev);
 		if (!isEvValid) {
-			msgSender.sendOk(ev.id, false, "error: invalid signature");
-			return;
+			return { ok: false, msg: "error: invalid signature" };
 		}
 		const validationRes = validateEventSemantics(ev);
-		if (!validationRes.isOk) {
+		if (!validationRes.ok) {
 			switch (validationRes.err) {
 				case "no-dtag-in-param-replaceable":
-					msgSender.sendOk(ev.id, false, "error: no d-tag in parametarized replaceable event");
-					return;
+					return { ok: false, msg: "error: no d-tag in parametarized replaceable event" };
 			}
 		}
 
 		// store events that are not ephemeral
 		if (getEventHandling(ev) !== "ephemeral") {
 			const insertionRes = this.#repo.insert(ev);
-			if (!insertionRes.isOk) {
+			if (!insertionRes.ok) {
 				switch (insertionRes.err) {
 					case "duplicated":
-						msgSender.sendOk(ev.id, true, "duplicate: already have this event");
-						return;
+						return { ok: true, msg: "duplicate: already have this event" };
 					case "deleted":
-						msgSender.sendOk(ev.id, false, "error: already deleted this event");
-						return;
+						return { ok: false, msg: "error: already deleted this event" };
 				}
 			}
 		}
 
 		this.#subPool.broadcast(ev);
-		msgSender.sendOk(ev.id, true);
+		return { ok: true, msg: "" };
 	}
 }
