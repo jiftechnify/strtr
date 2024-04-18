@@ -6,14 +6,8 @@ import { type Filter, matchFilter } from "nostr-tools/filter";
 
 import { getEventHandling, getTagValuesByName } from "./event";
 import { isNeverMatchingFilter } from "./filter";
+import type { EventRepositoryInsertionError, IEventRepository } from "./interfaces";
 import { Result } from "./types";
-
-export type EventRepositoryInsertionError = "duplicated" | "deleted";
-
-export interface EventRepository {
-	insert(ev: NostrEvent): Result<object, EventRepositoryInsertionError>;
-	query(filters: Filter[]): IterableIterator<NostrEvent>;
-}
 
 type EventIndices = {
 	author: EventIndex<string>;
@@ -22,7 +16,7 @@ type EventIndices = {
 	pTag: EventIndex<string>;
 };
 
-export class EventRepositoryImpl implements EventRepository {
+export class EventRepository implements IEventRepository {
 	#eventsById = new Map<string, ManagedEvent>();
 
 	#allEventsSorted = EventBucket.empty("all");

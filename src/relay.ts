@@ -5,14 +5,17 @@ import { type WebSocket, WebSocketServer } from "ws";
 
 import { getEventHandling, validateEventSemantics } from "./event";
 import { isNeverMatchingFilter } from "./filter";
+import type {
+	ConnectionCloser,
+	IConnection,
+	IEventIngestor,
+	IEventRepository,
+	ISubscription,
+	ISubscriptionPool,
+	ServiceBundle,
+} from "./interfaces";
 import { type R2CMessageSender, createR2CMessageSender, parseC2RMessage } from "./message";
-import { type EventRepository, EventRepositoryImpl } from "./repository";
-
-type ServiceBundle = {
-	repo: EventRepository;
-	subPool: SubscriptionPool;
-	ingestor: EventIngestor;
-};
+import { EventRepository } from "./repository";
 
 /**
  * Launches a Nostr relay.
@@ -22,11 +25,11 @@ type ServiceBundle = {
  * const shutdown = launchRelay();
  */
 export const launchRelay = () => {
-	const conns = new Set<Connection>();
+	const conns = new Set<IConnection>();
 
-	const repo = new EventRepositoryImpl();
-	const subPool = new SubscriptionPoolImpl();
-	const ingestor = new EventIngestorImpl(repo, subPool);
+	const repo = new EventRepository();
+	const subPool = new SubscriptionPool();
+	const ingestor = new EventIngestor(repo, subPool);
 	const services: ServiceBundle = {
 		repo,
 		subPool,
@@ -41,7 +44,7 @@ export const launchRelay = () => {
 		const peerId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
 		console.log(`[WSServer] new connection from ${peerId}`);
 
-		const conn = new ConnectionImpl(ws, peerId, services);
+		const conn = new Connection(ws, peerId, services);
 		conns.add(conn);
 
 		ws.on("error", () => {
@@ -70,13 +73,7 @@ export const launchRelay = () => {
 	};
 };
 
-type ConnectionCloser = "client" | "server";
-
-interface Connection {
-	close(closer: ConnectionCloser): void;
-}
-
-class ConnectionImpl implements Connection {
+class Connection implements IConnection {
 	#ws: WebSocket;
 	#peerId: string;
 
@@ -121,7 +118,7 @@ class ConnectionImpl implements Connection {
 							r2cMsgSender.sendClosed(subId, "error: no effective filter");
 							return;
 						}
-						const sub = new SubscriptionImpl(this.#peerId, subId, effFilters, r2cMsgSender);
+						const sub = new Subscription(this.#peerId, subId, effFilters, r2cMsgSender);
 						this.#services.subPool.register(sub);
 						this.#activeSubs.add(subId);
 						break;
@@ -169,14 +166,7 @@ class ConnectionImpl implements Connection {
 	}
 }
 
-interface Subscription {
-	readonly peerId: string;
-	readonly subId: string;
-
-	broadcast(ev: NostrEvent): void;
-}
-
-class SubscriptionImpl implements Subscription {
+class Subscription implements ISubscription {
 	#peerId: string;
 	#subId: string;
 	#filters: Filter[];
@@ -209,28 +199,21 @@ class SubscriptionImpl implements Subscription {
 	}
 }
 
-interface SubscriptionPool {
-	register(sub: Subscription): void;
-	unregister(peerId: string, subId: string): void;
-
-	broadcast(ev: NostrEvent): void;
-}
-
-class SubscriptionPoolImpl implements SubscriptionPool {
-	#subs = new Map<string, Subscription>();
+class SubscriptionPool implements ISubscriptionPool {
+	#subs = new Map<string, ISubscription>();
 
 	static #subUniqId(peerId: string, subId: string): string {
 		return `${peerId}/${subId}`;
 	}
 
-	register(sub: Subscription): void {
+	register(sub: ISubscription): void {
 		// if there is already a subscription with the same peer & subId, overwrite it with new one
 		console.log(`[SubscriptionPool] register subscription (peer: ${sub.peerId}, subId: ${sub.subId})`);
-		this.#subs.set(SubscriptionPoolImpl.#subUniqId(sub.peerId, sub.subId), sub);
+		this.#subs.set(SubscriptionPool.#subUniqId(sub.peerId, sub.subId), sub);
 	}
 	unregister(peerId: string, subId: string): void {
 		console.log(`[SubscriptionPool] unregister subscription (peer: ${peerId}, subId: ${subId})`);
-		this.#subs.delete(SubscriptionPoolImpl.#subUniqId(peerId, subId));
+		this.#subs.delete(SubscriptionPool.#subUniqId(peerId, subId));
 	}
 
 	broadcast(ev: NostrEvent): void {
@@ -242,15 +225,11 @@ class SubscriptionPoolImpl implements SubscriptionPool {
 	}
 }
 
-interface EventIngestor {
-	ingest(ev: NostrEvent, msgSender: R2CMessageSender): void;
-}
+class EventIngestor implements IEventIngestor {
+	#repo: IEventRepository;
+	#subPool: ISubscriptionPool;
 
-class EventIngestorImpl implements EventIngestor {
-	#repo: EventRepository;
-	#subPool: SubscriptionPool;
-
-	constructor(repo: EventRepository, subPool: SubscriptionPool) {
+	constructor(repo: IEventRepository, subPool: ISubscriptionPool) {
 		this.#repo = repo;
 		this.#subPool = subPool;
 	}
