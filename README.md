@@ -25,12 +25,15 @@ shutdown();
 
 By default, the relay listen on `127.0.0.1:5454`. You can change it with options.
 
+
+> [!NOTE]
+> For now, **strtr** holds all events in memory and forgets them all on shutdown.
+
 ## Options
 
 You can specify relay options by:
 
 - Command line options
-  + 
 - Environment variables
   + Uppercased option names, prefixed with `STRTR_`
 - Passing `RelayOptions` to `launchRelay()`
