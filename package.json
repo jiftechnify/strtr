@@ -2,9 +2,19 @@
 	"name": "strtr",
 	"version": "0.1.0",
 	"description": "",
-	"main": "index.js",
+	"main": "./dist/index.js",
 	"bin": "./bin/cli.js",
-	"files": ["dist", "bin"],
+	"typings": "./dist/index.d.ts",
+	"exports": {
+		"module": "./dist/index.mjs",
+		"require": "./dist/index.cjs",
+		"import": "./dist/index.mjs",
+		"types": "./dist/index.d.ts"
+	},
+	"files": [
+		"dist",
+		"bin"
+	],
 	"scripts": {
 		"tsc": "tsc",
 		"lint": "tsc && biome format ./src && biome lint ./src",
@@ -33,7 +43,9 @@
 		"@types/fs-extra": "^11.0.4",
 		"@types/ws": "^8.5.10",
 		"esbuild": "^0.20.2",
-		"fs-extra": "^11.2.0"
+		"esbuild-plugin-file-path-extensions": "^2.0.0",
+		"fs-extra": "^11.2.0",
+		"typescript": "^5.4.5"
 	},
 	"optionalDependencies": {
 		"bufferutil": "^4.0.8"
