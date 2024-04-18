@@ -18,6 +18,16 @@ import type {
 import { type R2CMessageSender, createR2CMessageSender, parseC2RMessage } from "./message";
 import { EventRepository } from "./repository";
 
+export type RelayOptions = {
+	host?: string;
+	port?: number;
+};
+
+const defaultRelayOptions: Required<RelayOptions> = {
+	host: "127.0.0.1",
+	port: 5454,
+};
+
 /**
  * Launches a Nostr relay.
  *
@@ -25,7 +35,9 @@ import { EventRepository } from "./repository";
  * import { launchRelay } from 'strtr';
  * const shutdown = launchRelay();
  */
-export const launchRelay = () => {
+export const launchRelay = (opts: RelayOptions = {}) => {
+	const options = { ...defaultRelayOptions, ...opts };
+
 	const conns = new Set<IConnection>();
 
 	const repo = new EventRepository();
@@ -37,9 +49,9 @@ export const launchRelay = () => {
 		ingestor,
 	};
 
-	const wsServer = new WebSocketServer({ port: 8080 });
+	const wsServer = new WebSocketServer({ host: options.host, port: options.port });
 	wsServer.on("listening", () => {
-		console.log("[WSServer] listening on port 8080");
+		console.log(`[WSServer] listening on ${options.host}:${options.port}`);
 	});
 	wsServer.on("connection", (ws, req) => {
 		const peerId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;

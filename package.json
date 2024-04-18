@@ -11,10 +11,7 @@
 		"import": "./dist/index.mjs",
 		"types": "./dist/index.d.ts"
 	},
-	"files": [
-		"dist",
-		"bin"
-	],
+	"files": ["dist", "bin"],
 	"scripts": {
 		"tsc": "tsc",
 		"lint": "tsc && biome format ./src && biome lint ./src",
@@ -34,6 +31,7 @@
 	"homepage": "https://github.com/jiftechnify/strtr#readme",
 	"dependencies": {
 		"heap-js": "^2.5.0",
+		"jackspeak": "^2.3.6",
 		"nostr-tools": "^2.5.0",
 		"ws": "^8.16.0"
 	},

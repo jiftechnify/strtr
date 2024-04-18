@@ -59,8 +59,8 @@ const buildCLIMain = async () => {
 		...sharedBuildOptions,
 		entryPoints: ["src/main.ts"],
 		format: "cjs",
-		external: ["./index"],
-		plugins: [esbuildPluginFilePathExtensions()],
+		external: ["./index", "jackspeak"],
+		plugins: [esbuildPluginFilePathExtensions({ filter: /^\.\// })],
 	});
 };
 

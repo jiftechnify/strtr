@@ -1,1 +1,1 @@
-export { launchRelay } from "./relay";
+export { launchRelay, type RelayOptions } from "./relay";
