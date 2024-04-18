@@ -229,21 +229,6 @@ export class EventRepository implements IEventRepository {
 	}
 }
 
-function* take<T>(iter: Iterable<T>, n: number): IterableIterator<T> {
-	if (n <= 0) {
-		return;
-	}
-
-	let i = 0;
-	for (const v of iter) {
-		yield v;
-		i++;
-		if (i >= n) {
-			break;
-		}
-	}
-}
-
 class ManagedEvent {
 	private deleted = false;
 	constructor(private ev: NostrEvent) {}
@@ -449,3 +434,18 @@ const compareNostrEvents = (e1: NostrEvent, e2: NostrEvent): number => {
 	}
 	return 0;
 };
+
+function* take<T>(iter: Iterable<T>, n: number): IterableIterator<T> {
+	if (n <= 0) {
+		return;
+	}
+
+	let i = 0;
+	for (const v of iter) {
+		yield v;
+		i++;
+		if (i >= n) {
+			break;
+		}
+	}
+}
