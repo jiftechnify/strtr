@@ -1,6 +1,6 @@
 {
 	"name": "strtr",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "",
 	"main": "./dist/index.js",
 	"bin": "./bin/cli.js",
@@ -17,7 +17,8 @@
 		"lint": "tsc && biome format ./src && biome lint ./src",
 		"fix": "biome format --write ./src && biome lint --apply ./src",
 		"build": "node build.mjs",
-		"start": "node bin/cli.js"
+		"start": "node bin/cli.js",
+		"prepack": "pnpm build"
 	},
 	"repository": {
 		"type": "git",
